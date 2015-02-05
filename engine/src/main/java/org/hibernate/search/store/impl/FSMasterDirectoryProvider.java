@@ -71,7 +71,9 @@ public class FSMasterDirectoryProvider implements DirectoryProvider<FSDirectory>
 		//source guessing
 		sourceDir = DirectoryProviderHelper.getSourceDirectory( directoryProviderName, properties, true );
 		log.debugf( "Source directory: %s", sourceDir.getPath() );
-		indexDir = DirectoryHelper.getVerifiedIndexDir( directoryProviderName, properties, true );
+
+		indexDir = getVerifiedIndexDir( directoryProviderName, properties, context );
+
 		log.debugf( "Index directory: %s", indexDir.getPath() );
 		try {
 			indexName = indexDir.getCanonicalPath();
@@ -82,6 +84,17 @@ public class FSMasterDirectoryProvider implements DirectoryProvider<FSDirectory>
 		}
 		copyChunkSize = DirectoryProviderHelper.getCopyBufferSize( directoryProviderName, properties );
 		current = 0; //write to volatile to publish all state
+	}
+
+	private File getVerifiedIndexDir(String directoryProviderName, Properties properties, BuildContext context) {
+		try {
+			return context.getServiceManager()
+					.requestService( DirectoryHelper.class )
+					.getVerifiedIndexDir( directoryProviderName, properties, true );
+		}
+		finally {
+			context.getServiceManager().releaseService( DirectoryHelper.class );
+		}
 	}
 
 	@Override

@@ -30,7 +30,7 @@ public class DirectoryHelperTest {
 		properties.put( "indexBase", root );
 		properties.put( "indexName", relative );
 
-		DirectoryHelper.getVerifiedIndexDir( "name", properties, true );
+		new DirectoryHelper().getVerifiedIndexDir( "name", properties, true );
 
 		assertTrue( new File( root ).exists() );
 

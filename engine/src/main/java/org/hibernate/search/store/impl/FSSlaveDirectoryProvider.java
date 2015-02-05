@@ -78,7 +78,7 @@ public class FSSlaveDirectoryProvider implements DirectoryProvider<Directory> {
 		//source guessing
 		sourceIndexDir = DirectoryProviderHelper.getSourceDirectory( directoryProviderName, properties, false );
 		log.debugf( "Source directory: %s", sourceIndexDir.getPath() );
-		indexDir = DirectoryHelper.getVerifiedIndexDir( directoryProviderName, properties, true );
+		indexDir = getVerifiedIndexDir( directoryProviderName, properties, context );
 		log.debugf( "Index directory: %s", indexDir.getPath() );
 		try {
 			indexName = indexDir.getCanonicalPath();
@@ -88,6 +88,17 @@ public class FSSlaveDirectoryProvider implements DirectoryProvider<Directory> {
 		}
 		copyChunkSize = DirectoryProviderHelper.getCopyBufferSize( directoryProviderName, properties );
 		current = 0; //publish all state to other threads
+	}
+
+	private File getVerifiedIndexDir(String directoryProviderName, Properties properties, BuildContext context) {
+		try {
+			return context.getServiceManager()
+					.requestService( DirectoryHelper.class )
+					.getVerifiedIndexDir( directoryProviderName, properties, true );
+		}
+		finally {
+			context.getServiceManager().releaseService( DirectoryHelper.class );
+		}
 	}
 
 	private boolean currentMarkerIsInSource() {
@@ -196,7 +207,14 @@ public class FSSlaveDirectoryProvider implements DirectoryProvider<Directory> {
 		if ( !started ) {
 			if ( dummyDirectory == null ) {
 				RAMDirectory directory = new RAMDirectory();
-				DirectoryHelper.initializeIndexIfNeeded( directory );
+
+				try {
+					serviceManager.requestService( DirectoryHelper.class ).initializeIndexIfNeeded( directory );
+				}
+				finally {
+					serviceManager.releaseService( DirectoryHelper.class );
+				}
+
 				dummyDirectory = directory;
 			}
 			return dummyDirectory;

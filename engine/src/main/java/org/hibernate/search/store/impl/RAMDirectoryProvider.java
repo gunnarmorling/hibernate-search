@@ -49,13 +49,14 @@ public class RAMDirectoryProvider implements DirectoryProvider<RAMDirectory> {
 
 			directory.setLockFactory( lockFactory );
 			properties = null;
-			DirectoryHelper.initializeIndexIfNeeded( directory );
+			serviceManager.requestService( DirectoryHelper.class ).initializeIndexIfNeeded( directory );
 		}
 		catch (IOException e) {
 			throw new SearchException( "Unable to initialize index: " + indexName, e );
 		}
 		finally {
 			serviceManager.releaseService( LockFactoryCreator.class );
+			serviceManager.releaseService( DirectoryHelper.class );
 		}
 	}
 

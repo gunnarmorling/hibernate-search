@@ -71,11 +71,7 @@ public class InfinispanDirectoryProvider implements org.hibernate.search.store.D
 		if ( configurationExplicitlySetsLockFactory( properties ) ) {
 			File verifiedIndexDir = null;
 			if ( isNativeLockingStrategy( properties ) ) {
-				verifiedIndexDir = DirectoryHelper.getVerifiedIndexDir(
-						directoryProviderName,
-						properties,
-						true
-				);
+				verifiedIndexDir = getVerifiedIndexDir( directoryProviderName, properties, context );
 			}
 			indexWriterLockFactory = getLockFactory( verifiedIndexDir, properties );
 		}
@@ -89,6 +85,18 @@ public class InfinispanDirectoryProvider implements org.hibernate.search.store.D
 			serviceManager.releaseService( LockFactoryCreator.class );
 		}
 	}
+
+	private File getVerifiedIndexDir(String directoryProviderName, Properties properties, BuildContext context) {
+		try {
+			return context.getServiceManager()
+					.requestService( DirectoryHelper.class )
+					.getVerifiedIndexDir( directoryProviderName, properties, true );
+		}
+		finally {
+			context.getServiceManager().releaseService( DirectoryHelper.class );
+		}
+	}
+
 
 	private boolean getWriteFileListAsync(Properties properties) {
 		boolean backendConfiguredAsync = !BackendFactory.isConfiguredAsSync( properties );
@@ -131,7 +139,14 @@ public class InfinispanDirectoryProvider implements org.hibernate.search.store.D
 			directoryBuildContext.overrideWriteLocker( indexWriterLockFactory );
 		}
 		directory = directoryBuildContext.create();
-		DirectoryHelper.initializeIndexIfNeeded( directory );
+
+		try {
+			serviceManager.requestService( DirectoryHelper.class ).initializeIndexIfNeeded( directory );
+		}
+		finally {
+			serviceManager.releaseService( DirectoryHelper.class );
+		}
+
 		log.debugf( "Initialized Infinispan index: '%s'", directoryProviderName );
 	}
 

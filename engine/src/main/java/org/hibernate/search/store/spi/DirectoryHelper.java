@@ -19,6 +19,7 @@ import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.LockObtainFailedException;
 import org.apache.lucene.util.Version;
 import org.hibernate.search.cfg.Environment;
+import org.hibernate.search.engine.service.spi.Service;
 import org.hibernate.search.exception.SearchException;
 import org.hibernate.search.store.impl.DirectoryProviderHelper;
 import org.hibernate.search.util.logging.impl.Log;
@@ -32,12 +33,9 @@ import org.hibernate.search.util.logging.impl.LoggerFactory;
  * @author Hardy Ferentschik
  * @author Gunnar Morling
  */
-public class DirectoryHelper {
+public class DirectoryHelper implements Service {
 
 	private static final Log log = LoggerFactory.make();
-
-	private DirectoryHelper() {
-	}
 
 	/**
 	 * Initialize the Lucene Directory if it isn't already.
@@ -45,7 +43,7 @@ public class DirectoryHelper {
 	 * @param directory the Directory to initialize
 	 * @throws SearchException in case of lock acquisition timeouts, IOException, or if a corrupt index is found
 	 */
-	public static void initializeIndexIfNeeded(Directory directory) {
+	public void initializeIndexIfNeeded(Directory directory) {
 		//version doesn't really matter as we won't use the Analyzer
 		Version version = Environment.DEFAULT_LUCENE_MATCH_VERSION;
 		SimpleAnalyzer analyzer = new SimpleAnalyzer( version );
@@ -82,7 +80,7 @@ public class DirectoryHelper {
 	 * @return the File representing the Index Directory
 	 * @throws SearchException if any.
 	 */
-	public static File getVerifiedIndexDir(String annotatedIndexName, Properties properties, boolean verifyIsWritable) {
+	public File getVerifiedIndexDir(String annotatedIndexName, Properties properties, boolean verifyIsWritable) {
 		String indexBase = properties.getProperty( Environment.INDEX_BASE_PROP_NAME, "." );
 		String indexName = properties.getProperty( Environment.INDEX_NAME_PROP_NAME, annotatedIndexName );
 		File baseIndexDir = new File( indexBase );

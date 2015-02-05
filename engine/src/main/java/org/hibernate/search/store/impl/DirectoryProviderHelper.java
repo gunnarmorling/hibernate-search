@@ -106,7 +106,14 @@ public final class DirectoryProviderHelper {
 		// throw an exception if it's different than a previous setting.
 		fsDirectory.setLockFactory( lockFactory );
 		log.debugf( "Initialize index: '%s'", indexDir.getAbsolutePath() );
-		DirectoryHelper.initializeIndexIfNeeded( fsDirectory );
+
+		try {
+			serviceManager.requestService( DirectoryHelper.class ).initializeIndexIfNeeded( fsDirectory );
+		}
+		finally {
+			serviceManager.releaseService( DirectoryHelper.class );
+		}
+
 		return fsDirectory;
 	}
 

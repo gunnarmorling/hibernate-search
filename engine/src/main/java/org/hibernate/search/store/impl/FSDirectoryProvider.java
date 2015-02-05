@@ -45,7 +45,7 @@ public class FSDirectoryProvider implements DirectoryProvider<FSDirectory> {
 	public void initialize(String directoryProviderName, Properties properties, BuildContext context) {
 		// on "manual" indexing skip read-write check on index directory
 		boolean manual = "manual".equals( context.getIndexingStrategy() );
-		File indexDir = DirectoryHelper.getVerifiedIndexDir( directoryProviderName, properties, !manual );
+		File indexDir = getVerifiedIndexDir( directoryProviderName, properties, context, !manual );
 		try {
 			indexName = indexDir.getCanonicalPath();
 			//this is cheap so it's not done in start()
@@ -53,6 +53,17 @@ public class FSDirectoryProvider implements DirectoryProvider<FSDirectory> {
 		}
 		catch (IOException e) {
 			throw new SearchException( "Unable to initialize index: " + directoryProviderName, e );
+		}
+	}
+
+	private File getVerifiedIndexDir(String directoryProviderName, Properties properties, BuildContext context, boolean verifyIsWritable) {
+		try {
+			return context.getServiceManager()
+					.requestService( DirectoryHelper.class )
+					.getVerifiedIndexDir( directoryProviderName, properties, verifyIsWritable );
+		}
+		finally {
+			context.getServiceManager().releaseService( DirectoryHelper.class );
 		}
 	}
 
