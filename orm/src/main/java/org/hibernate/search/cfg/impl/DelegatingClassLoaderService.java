@@ -8,6 +8,7 @@ package org.hibernate.search.cfg.impl;
 
 import java.io.InputStream;
 import java.net.URL;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 
 import org.hibernate.boot.registry.classloading.spi.ClassLoadingException;
@@ -67,23 +68,22 @@ public class DelegatingClassLoaderService implements ClassLoaderService {
 	}
 
 	@Override
-	public <T> LinkedHashSet<T> loadJavaServices(Class<T> serviceContract) {
+	public <T> Iterable<T> loadJavaServices(Class<T> serviceContract) {
 		// when it comes to services, we need to search in both services and the de-duplicate
 		// however, we cannot rely on 'equals' for comparison. Instead compare class names
-		LinkedHashSet<T> servicesFromORMCLassLoader = new LinkedHashSet<T>(
-				hibernateClassLoaderService.loadJavaServices(
-						serviceContract
-				)
-		);
-		LinkedHashSet<T> services = new LinkedHashSet<T>( internalClassLoaderService.loadJavaServices( serviceContract ) );
+		Iterable<T> servicesFromOrm = hibernateClassLoaderService.loadJavaServices( serviceContract );
 
-		for ( T serviceInstance : servicesFromORMCLassLoader ) {
-			if ( !contains( services, serviceInstance ) ) {
-				services.add( serviceInstance );
-			}
+		Iterable<T> internalServices = internalClassLoaderService.loadJavaServices( serviceContract );
+
+		LinkedHashMap<Class<T>,T> services = new LinkedHashMap<>();
+		//Add entries from ORM first, to allow our services to override them.
+		for ( T serviceInstance : servicesFromOrm ) {
+			services.put( serviceContract, serviceInstance );
 		}
-
-		return services;
+		for ( T serviceInstance : internalServices ) {
+			services.put( serviceContract, serviceInstance );
+		}
+		return services.values();
 	}
 
 	private <T> boolean contains(LinkedHashSet<T> services, T serviceInstance) {
