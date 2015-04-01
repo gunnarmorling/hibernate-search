@@ -11,12 +11,11 @@ import java.util.Properties;
 import javax.persistence.Entity;
 import javax.persistence.Id;
 
+import org.hibernate.boot.registry.StandardServiceRegistry;
+import org.hibernate.boot.registry.StandardServiceRegistryBuilder;
 import org.hibernate.cfg.Configuration;
 import org.hibernate.search.annotations.Indexed;
 import org.hibernate.search.testsupport.BytemanHelper;
-import org.hibernate.search.test.util.ServiceRegistryTools;
-import org.hibernate.service.ServiceRegistry;
-import org.hibernate.service.ServiceRegistryBuilder;
 import org.jboss.byteman.contrib.bmunit.BMRule;
 import org.jboss.byteman.contrib.bmunit.BMRules;
 import org.jboss.byteman.contrib.bmunit.BMUnitRunner;
@@ -55,10 +54,7 @@ public class HibernateSearchSessionFactoryObserverTest {
 		properties.setProperty( "hibernate.search.default.directory_provider", "ram" );
 		hibernateConfiguration.getProperties().putAll( properties );
 
-		ServiceRegistryBuilder registryBuilder = new ServiceRegistryBuilder();
-		registryBuilder.applySettings( hibernateConfiguration.getProperties() );
-
-		ServiceRegistry serviceRegistry = ServiceRegistryTools.build( registryBuilder );
+		StandardServiceRegistry serviceRegistry = new StandardServiceRegistryBuilder().applySettings( properties ).build();
 		try {
 			hibernateConfiguration.buildSessionFactory( serviceRegistry );
 			fail( "ByteMan should have forced an exception" );

@@ -89,32 +89,6 @@ public class AnalyzerTest extends SearchTestBase {
 	}
 
 	@Test
-	public void testMultipleAnalyzerDiscriminatorDefinitions() {
-		SearchConfigurationFromHibernateCore searchConfig = new SearchConfigurationFromHibernateCore(
-				getCfg(),
-				new ClassLoaderServiceImpl() // ORM internal class. Should be ok for testing (HF)
-		);
-		ReflectionManager reflectionManager = searchConfig.getReflectionManager();
-		XClass xclass = reflectionManager.toXClass( BlogEntry.class );
-		ConfigContext context = new ConfigContext( searchConfig, new BuildContextForTest( searchConfig ) );
-		MetadataProvider metadataProvider = new AnnotationMetadataProvider(
-				searchConfig.getReflectionManager(),
-				context
-		);
-
-		try {
-			metadataProvider.getTypeMetadataFor( reflectionManager.toClass( xclass ) );
-			fail();
-		}
-		catch (SearchException e) {
-			assertTrue(
-					"Wrong error message",
-					e.getMessage().startsWith( "Multiple AnalyzerDiscriminator defined in the same class hierarchy" )
-			);
-		}
-	}
-
-	@Test
 	public void testScopedAnalyzers() throws Exception {
 		MyEntity en = new MyEntity();
 		en.setEntity( "Entity" );
