@@ -6,11 +6,6 @@
  */
 package org.hibernate.search.test.integration.wildfly;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-
 import java.util.List;
 
 import javax.inject.Inject;
@@ -31,6 +26,11 @@ import org.jboss.shrinkwrap.descriptor.api.Descriptors;
 import org.jboss.shrinkwrap.descriptor.api.persistence20.PersistenceDescriptor;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Test the hibernate search module in JBoss AS.
@@ -61,6 +61,8 @@ public class ModuleMemberRegistrationIT {
 					.createProperty().name( "hibernate.hbm2ddl.auto" ).value( "create-drop" ).up()
 					.createProperty().name( "hibernate.search.default.lucene_version" ).value( "LUCENE_CURRENT" ).up()
 					.createProperty().name( "hibernate.search.default.directory_provider" ).value( "ram" ).up()
+					.createProperty().name( "hibernate.jdbc.batch_size" ).value( "50" ).up()
+					.createProperty().name( "show_sql" ).value( "true" ).up()
 				.up().up()
 			.exportAsString();
 		return new StringAsset( persistenceXml );

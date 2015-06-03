@@ -138,6 +138,15 @@
             <artifactId>jboss-jms-api_2.0_spec</artifactId>
             <scope>provided</scope>
         </dependency>
+        
+        <!--
+        <dependency>
+	<groupId>org.wildfly</groupId>
+	<artifactId>wildfly-testsuite-shared</artifactId>
+	<version>${wildflyVersion}</version>
+
+</dependency>
+            -->        
     </dependencies>
 
     <build>
