@@ -819,4 +819,7 @@ public interface Log extends BasicLogger {
 
 	@Message(id = 273, value = "The indexed field '%1$s' in '%2$s' is analyzed and marked for faceting. Only un-analyzed fields can be faceted.")
 	SearchException attemptToFacetOnAnalyzedField(String fieldName, String entityName);
+
+	@Message(id = 274, value = "No transaction is active while indexing entity type '%1$s'; Consider increasing the connection time-out")
+	SearchException transactionNotActiveWhileProducingIdsForBatchIndexing(@FormatWith(ClassFormatter.class) Class<?> entityClass);
 }
