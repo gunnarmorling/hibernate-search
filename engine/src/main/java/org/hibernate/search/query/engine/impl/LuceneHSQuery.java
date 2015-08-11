@@ -132,7 +132,7 @@ public class LuceneHSQuery extends AbstractHSQuery implements HSQuery, Serializa
 		}
 		try {
 			QueryHits queryHits = getQueryHits( searcher, calculateTopDocsRetrievalSize() );
-			int first = getFirstResultIndex();
+			int first = firstResult;
 			int max = max( first, queryHits.getTotalHits() );
 
 			int size = max - first + 1 < 0 ? 0 : max - first + 1;
@@ -188,9 +188,8 @@ public class LuceneHSQuery extends AbstractHSQuery implements HSQuery, Serializa
 		//FIXME: handle null searcher
 		try {
 			QueryHits queryHits = getQueryHits( openSearcher, calculateTopDocsRetrievalSize() );
-			int first = getFirstResultIndex();
-			int max = max( first, queryHits.getTotalHits() );
-			return buildDocumentExtractor( openSearcher, queryHits, first, max );
+			int max = max( firstResult, queryHits.getTotalHits() );
+			return buildDocumentExtractor( openSearcher, queryHits, firstResult, max );
 		}
 		catch (IOException e) {
 			closeSearcher( openSearcher );
@@ -339,11 +338,11 @@ public class LuceneHSQuery extends AbstractHSQuery implements HSQuery, Serializa
 	 *         returned.
 	 */
 	private Integer calculateTopDocsRetrievalSize() {
-		if ( ! definedMaxResults ) {
+		if ( maxResults == null ) {
 			return null;
 		}
 		else {
-			long tmpMaxResult = (long) getFirstResultIndex() + maxResults;
+			long tmpMaxResult = (long) firstResult + maxResults;
 			if ( tmpMaxResult >= Integer.MAX_VALUE ) {
 				// don't return just Integer.MAX_VALUE due to a bug in Lucene - see HSEARCH-330
 				return Integer.MAX_VALUE - 1;
@@ -355,10 +354,6 @@ public class LuceneHSQuery extends AbstractHSQuery implements HSQuery, Serializa
 				return (int) tmpMaxResult;
 			}
 		}
-	}
-
-	private int getFirstResultIndex() {
-		return firstResult;
 	}
 
 	private LazyQueryState buildSearcher() {
@@ -801,7 +796,7 @@ public class LuceneHSQuery extends AbstractHSQuery implements HSQuery, Serializa
 	}
 
 	private int max(int first, int totalHits) {
-		if ( ! definedMaxResults ) {
+		if ( maxResults == null ) {
 			return totalHits - 1;
 		}
 		else {
