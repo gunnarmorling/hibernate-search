@@ -16,21 +16,35 @@ import io.searchbox.core.search.sort.Sort.Sorting;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.regex.Pattern;
+
+import javax.xml.bind.DatatypeConverter;
 
 import org.apache.lucene.document.Document;
+import org.apache.lucene.document.DoubleField;
 import org.apache.lucene.document.Field.Store;
+import org.apache.lucene.document.FloatField;
+import org.apache.lucene.document.IntField;
+import org.apache.lucene.document.LongField;
 import org.apache.lucene.document.StringField;
 import org.apache.lucene.search.Explanation;
 import org.apache.lucene.search.Filter;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.SortField;
 import org.apache.lucene.search.TopDocs;
+import org.hibernate.search.backend.elasticsearch.ProjectionConstants;
 import org.hibernate.search.backend.elasticsearch.client.impl.JestClientHolder;
+import org.hibernate.search.bridge.FieldBridge;
+import org.hibernate.search.bridge.TwoWayFieldBridge;
 import org.hibernate.search.engine.integration.impl.ExtendedSearchIntegrator;
+import org.hibernate.search.engine.metadata.impl.DocumentFieldMetadata;
+import org.hibernate.search.engine.metadata.impl.PropertyMetadata;
 import org.hibernate.search.engine.spi.EntityIndexBinding;
 import org.hibernate.search.exception.AssertionFailure;
 import org.hibernate.search.exception.SearchException;
@@ -58,6 +72,7 @@ import com.google.gson.JsonObject;
 public class ElasticSearchHSQueryImpl extends AbstractHSQuery {
 
 	private static final Log LOG = LoggerFactory.make();
+	private static final Pattern DOT = Pattern.compile( "\\." );
 
 	private final String jsonQuery;
 
@@ -119,11 +134,6 @@ public class ElasticSearchHSQueryImpl extends AbstractHSQuery {
 
 	@Override
 	public HSQuery filter(Filter filter) {
-		throw new UnsupportedOperationException( "Not yet implemented" );
-	}
-
-	@Override
-	public HSQuery projection(String... fields) {
 		throw new UnsupportedOperationException( "Not yet implemented" );
 	}
 
@@ -252,9 +262,125 @@ public class ElasticSearchHSQueryImpl extends AbstractHSQuery {
 			Class<?> clazz = entityTypesByName.get( type );
 			EntityIndexBinding binding = extendedIntegrator.getIndexBinding( clazz );
 			Object id = getId( hit, binding );
+			Object[] projections = null;
+			List<Integer> indexesOfThis = null;
 
-			return new EntityInfoImpl( clazz, binding.getDocumentBuilder().getIdentifierName(), (Serializable) id, null );
+			if ( projectedFields != null ) {
+				projections = new Object[projectedFields.length];
+				indexesOfThis = new ArrayList<>();
+
+				int i = 0;
+				for( String field : projectedFields ) {
+					switch( field ) {
+						case ProjectionConstants.SOURCE:
+							projections[i] = hit.getAsJsonObject().get( "_source" ).toString();
+							break;
+						case ProjectionConstants.DOCUMENT:
+							throw new IllegalArgumentException( "Projection of Lucene document not supported with ElasticSearch backend" );
+						case DOCUMENT_ID:
+							throw new IllegalArgumentException( "Projection of Lucene document id not supported with ElasticSearch backend" );
+						case ProjectionConstants.EXPLANATION:
+							throw new UnsupportedOperationException( "Not yet implemented" );
+						case ProjectionConstants.ID:
+							projections[i] = id;
+							break;
+						case ProjectionConstants.OBJECT_CLASS:
+							projections[i] = clazz;
+							break;
+						case ProjectionConstants.SCORE:
+							projections[i] = hit.getAsJsonObject().get( "_score" ).getAsFloat();
+							break;
+						case ProjectionConstants.SPATIAL_DISTANCE:
+							throw new UnsupportedOperationException( "Not yet implemented" );
+						case ProjectionConstants.THIS:
+							indexesOfThis.add( i );
+							break;
+						default:
+							projections[i] = getFieldValue( binding, hit, field );
+					}
+
+					i++;
+				}
+			}
+
+			EntityInfoImpl entityInfo = new EntityInfoImpl( clazz, binding.getDocumentBuilder().getIdentifierName(), (Serializable) id, projections );
+
+			if ( indexesOfThis != null ) {
+				entityInfo.getIndexesOfThis().addAll( indexesOfThis );
+			}
+
+			return entityInfo;
 		}
+
+		/**
+		 * Returns the value of the given field as retrieved from the ES result and converted using the corresponding
+		 * field bridge. In case this bridge is not a 2-way bridge, the unconverted value will be returned.
+		 */
+		private Object getFieldValue(EntityIndexBinding binding, JsonObject hit, String projectedField) {
+			PropertyMetadata property = FieldHelper.getPropertyMetadata( binding, projectedField );
+			DocumentFieldMetadata field = property.getFieldMetadata( projectedField );
+
+			if ( field == null ) {
+				throw new IllegalArgumentException( "Unknown field " + projectedField + " for entity "
+						+ binding.getDocumentBuilder().getMetadata().getType().getName() );
+			}
+
+			FieldBridge fieldBridge = field.getFieldBridge();
+			JsonElement value = getFieldValue( hit.get( "_source" ).getAsJsonObject(), projectedField );
+
+			if ( FieldHelper.isBoolean( binding, projectedField ) ) {
+				return value.getAsBoolean();
+			}
+			else if ( FieldHelper.isDate( binding, projectedField ) ) {
+				return getAsDate( value.getAsString() );
+			}
+			else if ( fieldBridge instanceof TwoWayFieldBridge ) {
+				Document tmp = new Document();
+
+				if ( field.isNumeric() ) {
+					if ( FieldHelper.isInt( binding, projectedField ) ) {
+						tmp.add( new IntField( projectedField, value.getAsInt(), Store.NO) );
+					}
+					else if ( FieldHelper.isLong( binding, projectedField ) ) {
+						tmp.add( new LongField( projectedField, value.getAsLong(), Store.NO) );
+					}
+					else if ( FieldHelper.isFloat( binding, projectedField ) ) {
+						tmp.add( new FloatField( projectedField, value.getAsFloat(), Store.NO) );
+					}
+					else if ( FieldHelper.isDouble( binding, projectedField ) ) {
+						tmp.add( new DoubleField( projectedField, value.getAsDouble(), Store.NO) );
+					}
+				}
+				else {
+					tmp.add( new StringField( projectedField, value.getAsString(), Store.NO) );
+				}
+
+				return ( (TwoWayFieldBridge) fieldBridge ).get( projectedField, tmp );
+			}
+
+			return value;
+		}
+
+		private JsonElement getFieldValue(JsonObject parent, String projectedField) {
+			String field = projectedField;
+
+			if ( projectedField.contains( "." ) ) {
+				String[] parts = DOT.split( projectedField );
+				field = parts[parts.length - 1];
+
+				for (int i = 0; i < parts.length - 1; i++) {
+					parent = parent.get( parts[i] ).getAsJsonObject();
+				}
+			}
+
+			return parent.getAsJsonObject().get( field );
+		}
+	}
+
+	// TODO Handle resolution
+	private Date getAsDate(String value) {
+		Calendar c = DatatypeConverter.parseDateTime( value );
+		return c.getTime();
 	}
 
 	// TODO: Investigate scrolling API: https://www.elastic.co/guide/en/elasticsearch/reference/current/search-request-scroll.html

@@ -30,6 +30,26 @@ class FieldHelper {
 
 	private static final Pattern DOT = Pattern.compile( "\\." );
 
+	static boolean isInt(EntityIndexBinding indexBinding, String fieldName) {
+		String propertyTypeName = getPropertyTypeName( indexBinding, fieldName );
+		return propertyTypeName.equals( "int" ) || propertyTypeName.equals( "java.lang.Integer" );
+	}
+
+	static boolean isLong(EntityIndexBinding indexBinding, String fieldName) {
+		String propertyTypeName = getPropertyTypeName( indexBinding, fieldName );
+		return propertyTypeName.equals( "long" ) || propertyTypeName.equals( "java.lang.Long" );
+	}
+
+	static boolean isFloat(EntityIndexBinding indexBinding, String fieldName) {
+		String propertyTypeName = getPropertyTypeName( indexBinding, fieldName );
+		return propertyTypeName.equals( "float" ) || propertyTypeName.equals( "java.lang.Float" );
+	}
+
+	static boolean isDouble(EntityIndexBinding indexBinding, String fieldName) {
+		String propertyTypeName = getPropertyTypeName( indexBinding, fieldName );
+		return propertyTypeName.equals( "double" ) || propertyTypeName.equals( "java.lang.Double" );
+	}
+
 	static boolean isBoolean(EntityIndexBinding indexBinding, String fieldName) {
 		String propertyTypeName = getPropertyTypeName( indexBinding, fieldName );
 		return propertyTypeName.equals( "boolean" ) || propertyTypeName.equals( "java.lang.Boolean" );
