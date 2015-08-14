@@ -6,8 +6,6 @@
  */
 package org.hibernate.search.backend.elasticsearch.impl;
 
-import io.searchbox.action.Action;
-import io.searchbox.client.JestResult;
 import io.searchbox.core.Search;
 import io.searchbox.core.SearchResult;
 import io.searchbox.core.search.sort.Sort;
@@ -39,7 +37,7 @@ import org.apache.lucene.search.Query;
 import org.apache.lucene.search.SortField;
 import org.apache.lucene.search.TopDocs;
 import org.hibernate.search.backend.elasticsearch.ProjectionConstants;
-import org.hibernate.search.backend.elasticsearch.client.impl.JestClientHolder;
+import org.hibernate.search.backend.elasticsearch.client.impl.JestClientReference;
 import org.hibernate.search.bridge.FieldBridge;
 import org.hibernate.search.bridge.TwoWayFieldBridge;
 import org.hibernate.search.engine.integration.impl.ExtendedSearchIntegrator;
@@ -47,7 +45,6 @@ import org.hibernate.search.engine.metadata.impl.DocumentFieldMetadata;
 import org.hibernate.search.engine.metadata.impl.PropertyMetadata;
 import org.hibernate.search.engine.spi.EntityIndexBinding;
 import org.hibernate.search.exception.AssertionFailure;
-import org.hibernate.search.exception.SearchException;
 import org.hibernate.search.filter.FullTextFilter;
 import org.hibernate.search.indexes.spi.IndexManager;
 import org.hibernate.search.query.engine.impl.AbstractHSQuery;
@@ -186,24 +183,6 @@ public class ElasticSearchHSQueryImpl extends AbstractHSQuery {
 		return id;
 	}
 
-	private <T extends JestResult > T executeRequest(Action<T> request) {
-		T result;
-		try {
-			result = JestClientHolder.getClient().execute( request );
-
-			System.out.println( result.getJsonString() );
-
-			if ( !result.isSucceeded() ) {
-				throw new SearchException( result.getErrorMessage() );
-			}
-
-			return result;
-		}
-		catch (IOException e) {
-			throw new SearchException( e );
-		}
-	}
-
 	/**
 	 * Determines the affected indexes and runs the given query against them.
 	 */
@@ -254,7 +233,9 @@ public class ElasticSearchHSQueryImpl extends AbstractHSQuery {
 		}
 
 		SearchResult runSearch() {
-			return executeRequest( search );
+			try ( JestClientReference clientReference = new JestClientReference( extendedIntegrator.getServiceManager() ) ) {
+				return clientReference.executeRequest( search );
+			}
 		}
 
 		EntityInfo convertQueryHit(JsonObject hit) {
