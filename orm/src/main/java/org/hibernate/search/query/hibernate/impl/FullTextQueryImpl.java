@@ -38,6 +38,7 @@ import org.hibernate.search.query.engine.spi.FacetManager;
 import org.hibernate.search.query.engine.spi.HSQuery;
 import org.hibernate.search.query.engine.spi.TimeoutExceptionFactory;
 import org.hibernate.search.query.engine.spi.TimeoutManager;
+import org.hibernate.search.query.spi.QueryDescriptor;
 import org.hibernate.search.spatial.Coordinates;
 import org.hibernate.search.spatial.impl.Point;
 import org.hibernate.search.util.logging.impl.Log;
@@ -86,6 +87,32 @@ public class FullTextQueryImpl extends AbstractQueryImpl implements FullTextQuer
 				.luceneQuery( query )
 				.timeoutExceptionFactory( exceptionFactory )
 				.tenantIdentifier( session.getTenantIdentifier() )
+				.targetedEntities( Arrays.asList( classes ) );
+	}
+
+	/**
+	 * Constructs a  <code>FullTextQueryImpl</code> instance.
+	 *
+	 * @param query The query.
+	 * @param classes Array of classes (must be immutable) used to filter the results to the given class types.
+	 * @param session Access to the Hibernate session.
+	 * @param parameterMetadata Additional query metadata.
+	 */
+	public FullTextQueryImpl(QueryDescriptor query,
+			Class<?>[] classes,
+			SessionImplementor session,
+			ParameterMetadata parameterMetadata) {
+		//TODO handle flushMode
+		super( query.toString(), null, session, parameterMetadata );
+
+		ExtendedSearchIntegrator extendedIntegrator = getExtendedSearchIntegrator();
+		this.objectLookupMethod = extendedIntegrator.getDefaultObjectLookupMethod();
+		this.databaseRetrievalMethod = extendedIntegrator.getDefaultDatabaseRetrievalMethod();
+
+		hSearchQuery = query.createHSQuery( extendedIntegrator );
+		hSearchQuery
+				.timeoutExceptionFactory( exceptionFactory )
+//				.tenantIdentifier( session.getTenantIdentifier() )
 				.targetedEntities( Arrays.asList( classes ) );
 	}
 
