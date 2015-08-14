@@ -38,6 +38,7 @@ import org.hibernate.search.test.embedded.Tower;
 import org.hibernate.search.testutil.backend.elasticsearch.JsonHelper;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.ClassRule;
 import org.junit.Test;
 
 import static org.fest.assertions.Assertions.assertThat;
@@ -49,7 +50,10 @@ import static org.junit.Assert.assertTrue;
  */
 public class ElasticSearchTest extends SearchTestBase {
 
-	private static final String SERVER_URI = "http://192.168.59.103:9200";
+	private static final String SERVER_URI = "http://127.0.0.1:9200";
+
+	@ClassRule
+	public static final ESRuntime es = new ESRuntime();
 
 	@Before
 	public void setupTestData() {
