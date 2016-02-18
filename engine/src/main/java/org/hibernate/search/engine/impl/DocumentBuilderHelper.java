@@ -13,10 +13,12 @@ import java.util.zip.DataFormatException;
 
 import org.apache.lucene.document.CompressionTools;
 import org.apache.lucene.document.Document;
+import org.apache.lucene.document.LongField;
+import org.apache.lucene.document.StringField;
+import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.IndexableField;
+import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.util.BytesRef;
-
-import org.hibernate.search.exception.SearchException;
 import org.hibernate.search.annotations.Store;
 import org.hibernate.search.bridge.FieldBridge;
 import org.hibernate.search.bridge.TwoWayFieldBridge;
@@ -30,6 +32,8 @@ import org.hibernate.search.engine.service.classloading.spi.ClassLoadingExceptio
 import org.hibernate.search.engine.service.spi.ServiceManager;
 import org.hibernate.search.engine.spi.DocumentBuilderIndexedEntity;
 import org.hibernate.search.engine.spi.EntityIndexBinding;
+import org.hibernate.search.exception.SearchException;
+import org.hibernate.search.metadata.NumericFieldSettingsDescriptor.NumericEncodingType;
 import org.hibernate.search.util.impl.ClassLoaderHelper;
 import org.hibernate.search.util.logging.impl.Log;
 import org.hibernate.search.util.logging.impl.LoggerFactory;
@@ -68,6 +72,48 @@ public final class DocumentBuilderHelper {
 					.pushIdentifierProperty()
 					.twoWayConversionContext( fieldBridge )
 					.get( fieldName, document );
+		}
+		finally {
+			conversionContext.popProperty();
+		}
+	}
+
+	public static Serializable getDocumentId(ExtendedSearchIntegrator extendedIntegrator, Class<?> clazz, IndexReader indexReader, int docId, ConversionContext conversionContext) {
+		final DocumentBuilderIndexedEntity documentBuilder = getDocumentBuilder(
+				extendedIntegrator,
+				clazz
+		);
+
+		String idFieldName = documentBuilder.getIdKeywordName();
+		DocumentFieldMetadata idFieldMetaData = documentBuilder.getMetadata().getIdPropertyMetadata().getFieldMetadata( idFieldName );
+
+		Document dummy = new Document();
+
+		for ( LeafReaderContext leaveReader : indexReader.leaves() ) {
+			try {
+				if ( idFieldMetaData.getNumericEncodingType() == NumericEncodingType.LONG ) {
+					long value = leaveReader.reader().getNumericDocValues( idFieldName ).get( docId );
+					dummy.add( new LongField( idFieldName, value, org.apache.lucene.document.Field.Store.NO ) );
+				}
+				// TODO FLOAT, DOUBLE???
+				else {
+					BytesRef value = leaveReader.reader().getBinaryDocValues( idFieldName ).get( docId );
+					dummy.add( new StringField( idFieldName, value.utf8ToString(), org.apache.lucene.document.Field.Store.NO ) );
+				}
+			}
+			catch(Exception e) {
+				throw new SearchException( "Couldn't determine doc value: ", e);
+			}
+		}
+
+		final TwoWayFieldBridge fieldBridge = documentBuilder.getIdBridge();
+		final String fieldName = documentBuilder.getIdKeywordName();
+		try {
+			return (Serializable) conversionContext
+					.setClass( clazz )
+					.pushIdentifierProperty()
+					.twoWayConversionContext( fieldBridge )
+					.get( fieldName, dummy );
 		}
 		finally {
 			conversionContext.popProperty();
@@ -276,5 +322,3 @@ public final class DocumentBuilderHelper {
 		return entityIndexBinding.getDocumentBuilder();
 	}
 }
-
-

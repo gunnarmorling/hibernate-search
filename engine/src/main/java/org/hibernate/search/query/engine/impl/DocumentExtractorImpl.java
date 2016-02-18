@@ -168,7 +168,7 @@ public class DocumentExtractorImpl implements DocumentExtractor {
 			return null;
 		}
 		else {
-			return DocumentBuilderHelper.getDocumentId( extendedIntegrator, clazz, document, exceptionWrap );
+			return DocumentBuilderHelper.getDocumentId( extendedIntegrator, clazz, searcher.getIndexReader(), docId, exceptionWrap );
 		}
 	}
 

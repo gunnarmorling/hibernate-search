@@ -17,6 +17,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.apache.lucene.document.BinaryDocValuesField;
 import org.apache.lucene.document.DateTools;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.DoubleDocValuesField;
@@ -336,10 +337,13 @@ public class DocumentBuilderIndexedEntity extends AbstractDocumentBuilder {
 			final FieldBridge contextualizedBridge = conversionContext.oneWayConversionContext( getIdBridge() );
 			conversionContext.setClass( entityType );
 			conversionContext.pushProperty( idFieldMetaData.getName() );
-
 			try {
 				contextualizedBridge.set( idFieldMetaData.getName(), id, doc, luceneOptions );
+
+				addIdDocValueField( doc, idFieldMetaData );
 				addSortFieldDocValues( doc, idPropertyMetadata, documentLevelBoost, id );
+
+				doc.removeField( idFieldMetaData.getFieldName() );
 			}
 			finally {
 				conversionContext.popProperty();
@@ -753,6 +757,29 @@ public class DocumentBuilderIndexedEntity extends AbstractDocumentBuilder {
 					document.add( new SortedDocValuesField( sortField.getFieldName(), new BytesRef( field.stringValue() ) ) );
 				}
 			}
+		}
+	}
+
+	private void addIdDocValueField(Document document, DocumentFieldMetadata idFieldMetaData) {
+		IndexableField field = document.getField( idFieldMetaData.getFieldName() );
+		if ( field == null ) {
+			throw new SearchException( "Couldn't read id field" );
+		}
+
+		Number numericValue = field.numericValue();
+		if ( numericValue != null ) {
+			if ( numericValue instanceof Double ) {
+				document.add( new DoubleDocValuesField( idFieldMetaData.getFieldName(), (double) numericValue ) );
+			}
+			else if ( numericValue instanceof Float ) {
+				document.add( new FloatDocValuesField( idFieldMetaData.getFieldName(), (float) numericValue ) );
+			}
+			else {
+				document.add( new NumericDocValuesField( idFieldMetaData.getFieldName(), numericValue.longValue() ) );
+			}
+		}
+		else {
+			document.add( new BinaryDocValuesField( idFieldMetaData.getFieldName(), new BytesRef( field.stringValue() ) ) );
 		}
 	}
 
