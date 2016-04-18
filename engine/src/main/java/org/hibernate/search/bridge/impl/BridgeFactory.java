@@ -35,6 +35,7 @@ import org.hibernate.search.bridge.spi.BridgeProvider;
 import org.hibernate.search.engine.service.classloading.spi.ClassLoaderService;
 import org.hibernate.search.engine.service.spi.ServiceManager;
 import org.hibernate.search.exception.AssertionFailure;
+import org.hibernate.search.indexes.spi.IndexManager;
 import org.hibernate.search.util.impl.ReflectionHelper;
 import org.hibernate.search.util.logging.impl.Log;
 import org.hibernate.search.util.logging.impl.LoggerFactory;
@@ -178,9 +179,10 @@ public final class BridgeFactory {
 			boolean isId,
 			boolean isExplicitlyMarkedAsNumeric,
 			ReflectionManager reflectionManager,
-			ServiceManager serviceManager
+			ServiceManager serviceManager,
+			Class<? extends IndexManager> indexManagerType
 	) {
-		return buildFieldBridge( null, member, isId, isExplicitlyMarkedAsNumeric, reflectionManager, serviceManager );
+		return buildFieldBridge( null, member, isId, isExplicitlyMarkedAsNumeric, reflectionManager, serviceManager, indexManagerType );
 	}
 
 	public FieldBridge buildFieldBridge(Field field,
@@ -188,7 +190,8 @@ public final class BridgeFactory {
 			boolean isId,
 			boolean isExplicitlyMarkedAsNumeric,
 			ReflectionManager reflectionManager,
-			ServiceManager serviceManager
+			ServiceManager serviceManager,
+			Class<? extends IndexManager> indexManagerType
 	) {
 		FieldBridge bridge = findExplicitFieldBridge( field, member, reflectionManager );
 		if ( bridge != null ) {

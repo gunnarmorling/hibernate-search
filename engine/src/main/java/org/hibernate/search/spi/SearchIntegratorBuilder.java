@@ -63,6 +63,7 @@ import org.hibernate.search.filter.FilterCachingStrategy;
 import org.hibernate.search.filter.impl.CachingWrapperFilter;
 import org.hibernate.search.filter.impl.MRUFilterCachingStrategy;
 import org.hibernate.search.indexes.impl.IndexManagerHolder;
+import org.hibernate.search.indexes.spi.IndexManager;
 import org.hibernate.search.spi.impl.ExtendedSearchIntegratorWithShareableState;
 import org.hibernate.search.spi.impl.PolymorphicIndexHierarchy;
 import org.hibernate.search.spi.impl.SearchFactoryState;
@@ -318,6 +319,8 @@ public class SearchIntegratorBuilder {
 		final org.hibernate.search.engine.metadata.impl.MetadataProvider metadataProvider =
 				new AnnotationMetadataProvider( searchConfiguration.getReflectionManager(), configContext );
 
+		IndexManagerHolder indexesFactory = factoryState.getAllIndexesManager();
+
 		for ( Map.Entry<XClass, Class<?>> mapping : classMappings.entrySet() ) {
 			XClass mappedXClass = mapping.getKey();
 			Class<?> mappedClass = mapping.getValue();
@@ -335,7 +338,11 @@ public class SearchIntegratorBuilder {
 				//FIXME DocumentBuilderIndexedEntity needs to be built by a helper method receiving Class<T> to infer T properly
 				//XClass unfortunately is not (yet) genericized: TODO?
 
-				TypeMetadata typeMetadata = metadataProvider.getTypeMetadataFor( mappedClass );
+				Class<? extends IndexManager> indexManagerType = indexesFactory.getIndexManagerType(
+						mappedXClass, searchConfiguration, buildContext
+				);
+
+				TypeMetadata typeMetadata = metadataProvider.getTypeMetadataFor( mappedClass, indexManagerType );
 				final DocumentBuilderContainedEntity documentBuilder = new DocumentBuilderContainedEntity(
 						mappedXClass,
 						typeMetadata,
@@ -349,8 +356,6 @@ public class SearchIntegratorBuilder {
 				}
 			}
 		}
-
-		IndexManagerHolder indexesFactory = factoryState.getAllIndexesManager();
 
 		// Create all IndexManagers, configure and start them:
 		for ( XClass mappedXClass : rootIndexedEntities ) {
@@ -367,10 +372,14 @@ public class SearchIntegratorBuilder {
 				optimizationBlackListedTypes.add( mappedXClass );
 			}
 
+			Class<? extends IndexManager> indexManagerType = indexesFactory.getIndexManagerType(
+					mappedXClass, searchConfiguration, buildContext
+			);
+
 			// Create all DocumentBuilderIndexedEntity
 			// FIXME DocumentBuilderIndexedEntity needs to be built by a helper method receiving Class<T> to infer T properly
 			// XClass unfortunately is not (yet) genericized: TODO ?
-			TypeMetadata typeMetadata = metadataProvider.getTypeMetadataFor( mappedClass );
+			TypeMetadata typeMetadata = metadataProvider.getTypeMetadataFor( mappedClass, indexManagerType );
 			final DocumentBuilderIndexedEntity documentBuilder =
 					new DocumentBuilderIndexedEntity(
 							mappedXClass,

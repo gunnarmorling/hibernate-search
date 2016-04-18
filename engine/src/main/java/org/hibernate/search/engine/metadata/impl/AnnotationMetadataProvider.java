@@ -84,6 +84,7 @@ import org.hibernate.search.engine.impl.nullencoding.NullMarkerCodec;
 import org.hibernate.search.engine.impl.nullencoding.NumericNullEncodersHelper;
 import org.hibernate.search.exception.AssertionFailure;
 import org.hibernate.search.exception.SearchException;
+import org.hibernate.search.indexes.spi.IndexManager;
 import org.hibernate.search.metadata.NumericFieldSettingsDescriptor.NumericEncodingType;
 import org.hibernate.search.spatial.Coordinates;
 import org.hibernate.search.spatial.SpatialFieldBridge;
@@ -139,7 +140,7 @@ public class AnnotationMetadataProvider implements MetadataProvider {
 	}
 
 	@Override
-	public TypeMetadata getTypeMetadataFor(Class<?> clazz) {
+	public TypeMetadata getTypeMetadataFor(Class<?> clazz, Class<? extends IndexManager> indexManagerType) {
 		XClass xClass = reflectionManager.toXClass( clazz );
 		TypeMetadata.Builder typeMetadataBuilder = new TypeMetadata.Builder( clazz, configContext )
 				.boost( getBoost( xClass ) )
@@ -159,7 +160,8 @@ public class AnnotationMetadataProvider implements MetadataProvider {
 				parseContext,
 				configContext,
 				false,
-				null
+				null,
+				indexManagerType
 		);
 
 		return typeMetadataBuilder.build();
@@ -193,7 +195,8 @@ public class AnnotationMetadataProvider implements MetadataProvider {
 			ConfigContext configContext,
 			PathsContext pathsContext,
 			ParseContext parseContext,
-			boolean hasExplicitDocumentId) {
+			boolean hasExplicitDocumentId,
+			Class<? extends IndexManager> indexManagerType) {
 		Annotation idAnnotation = getIdAnnotation( member, typeMetadataBuilder, configContext );
 		if ( idAnnotation == null ) {
 			return;
@@ -215,12 +218,13 @@ public class AnnotationMetadataProvider implements MetadataProvider {
 					parseContext,
 					idAnnotation,
 					path,
-					unprefixedAttributeName
+					unprefixedAttributeName,
+					indexManagerType
 			);
 		}
 		else {
 			if ( parseContext.includeEmbeddedObjectId() || pathsContext.containsPath( path ) ) {
-				createPropertyMetadataForEmbeddedId( member, typeMetadataBuilder, propertyMetadataBuilder, numericFields, configContext, unprefixedAttributeName, path );
+				createPropertyMetadataForEmbeddedId( member, typeMetadataBuilder, propertyMetadataBuilder, numericFields, configContext, unprefixedAttributeName, path, indexManagerType );
 			}
 		}
 
@@ -229,7 +233,7 @@ public class AnnotationMetadataProvider implements MetadataProvider {
 		}
 	}
 
-	private void createPropertyMetadataForEmbeddedId(XProperty member, TypeMetadata.Builder typeMetadataBuilder, PropertyMetadata.Builder propertyMetadataBuilder, NumericFieldsConfiguration numericFields, ConfigContext configContext, String unprefixedFieldName, String fieldName) {
+	private void createPropertyMetadataForEmbeddedId(XProperty member, TypeMetadata.Builder typeMetadataBuilder, PropertyMetadata.Builder propertyMetadataBuilder, NumericFieldsConfiguration numericFields, ConfigContext configContext, String unprefixedFieldName, String fieldName, Class<? extends IndexManager> indexManagerType) {
 		Field.Index index = AnnotationProcessingHelper.getIndex( Index.YES, Analyze.NO, Norms.YES );
 		Field.TermVector termVector = AnnotationProcessingHelper.getTermVector( TermVector.NO );
 
@@ -238,7 +242,8 @@ public class AnnotationMetadataProvider implements MetadataProvider {
 				true,
 				numericFields.isNumericField( unprefixedFieldName ),
 				reflectionManager,
-				configContext.getServiceManager()
+				configContext.getServiceManager(),
+				indexManagerType
 		);
 
 		DocumentFieldMetadata fieldMetadata =
@@ -271,7 +276,8 @@ public class AnnotationMetadataProvider implements MetadataProvider {
 			ParseContext parseContext,
 			Annotation idAnnotation,
 			String path,
-			String unprefixedAttributeName) {
+			String unprefixedAttributeName,
+			Class<? extends IndexManager> indexManagerType) {
 		if ( parseContext.isExplicitDocumentId() ) {
 			if ( idAnnotation instanceof DocumentId ) {
 				throw log.duplicateDocumentIdFound( typeMetadataBuilder.getIndexedType().getName() );
@@ -298,7 +304,8 @@ public class AnnotationMetadataProvider implements MetadataProvider {
 				true,
 				numericFieldAnnotation != null,
 				reflectionManager,
-				configContext.getServiceManager()
+				configContext.getServiceManager(),
+				indexManagerType
 		);
 		if ( !( idBridge instanceof TwoWayFieldBridge ) ) {
 			throw new SearchException(
@@ -447,7 +454,8 @@ public class AnnotationMetadataProvider implements MetadataProvider {
 			ParseContext parseContext,
 			ConfigContext configContext,
 			boolean disableOptimizationsArg,
-			PathsContext pathsContext) {
+			PathsContext pathsContext,
+			Class<? extends IndexManager> indexManagerType) {
 		List<XClass> hierarchy = ReflectionHelper.createXClassHierarchy( parseContext.getCurrentClass() );
 
 		// Iterate the class hierarchy top down. This allows to override the default analyzer for the properties if the class holds one
@@ -497,7 +505,8 @@ public class AnnotationMetadataProvider implements MetadataProvider {
 						configContext,
 						pathsContext,
 						parseContext,
-						hasExplicitDocumentId
+						hasExplicitDocumentId,
+						indexManagerType
 				);
 			}
 
@@ -513,7 +522,8 @@ public class AnnotationMetadataProvider implements MetadataProvider {
 						configContext,
 						pathsContext,
 						parseContext,
-						hasExplicitDocumentId
+						hasExplicitDocumentId,
+						indexManagerType
 				);
 			}
 
@@ -665,7 +675,8 @@ public class AnnotationMetadataProvider implements MetadataProvider {
 			XProperty member,
 			TypeMetadata.Builder typeMetadataBuilder,
 			PropertyMetadata.Builder propertyMetadataBuilder,
-			ParseContext parseContext) {
+			ParseContext parseContext,
+			Class<? extends IndexManager> indexManagerType) {
 
 		if ( parseContext.isSpatialNameUsed( spatialAnnotation.name() ) ) {
 			throw log.cannotHaveTwoSpatialsWithDefaultOrSameName( member.getType().getName() );
@@ -681,7 +692,8 @@ public class AnnotationMetadataProvider implements MetadataProvider {
 				false,
 				false,
 				reflectionManager,
-				configContext.getServiceManager()
+				configContext.getServiceManager(),
+				indexManagerType
 		);
 
 		DocumentFieldMetadata fieldMetadata = new DocumentFieldMetadata.Builder( fieldName, store, index, termVector )
@@ -892,7 +904,8 @@ public class AnnotationMetadataProvider implements MetadataProvider {
 			ConfigContext configContext,
 			PathsContext pathsContext,
 			ParseContext parseContext,
-			boolean hasExplicitDocumentId) {
+			boolean hasExplicitDocumentId,
+			Class<? extends IndexManager> indexManagerType) {
 
 		PropertyMetadata.Builder propertyMetadataBuilder = new PropertyMetadata.Builder( member )
 			.dynamicBoostStrategy( AnnotationProcessingHelper.getDynamicBoost( member ) );
@@ -900,13 +913,13 @@ public class AnnotationMetadataProvider implements MetadataProvider {
 		NumericFieldsConfiguration numericFields = buildNumericFieldsConfiguration( typeMetadataBuilder.getIndexedType(), member, prefix, pathsContext, parseContext );
 
 		if ( !isProvidedId ) {
-			checkDocumentId( member, typeMetadataBuilder, propertyMetadataBuilder, numericFields, isRoot, prefix, configContext, pathsContext, parseContext, hasExplicitDocumentId );
+			checkDocumentId( member, typeMetadataBuilder, propertyMetadataBuilder, numericFields, isRoot, prefix, configContext, pathsContext, parseContext, hasExplicitDocumentId, indexManagerType );
 		}
 
-		checkForField( member, typeMetadataBuilder, propertyMetadataBuilder, numericFields, prefix, configContext, pathsContext, parseContext );
-		checkForFields( member, typeMetadataBuilder, propertyMetadataBuilder, numericFields, prefix, configContext, pathsContext, parseContext );
-		checkForSpatial( member, typeMetadataBuilder, propertyMetadataBuilder, prefix, pathsContext, parseContext );
-		checkForSpatialsAnnotation( member, typeMetadataBuilder, propertyMetadataBuilder, prefix, pathsContext, parseContext );
+		checkForField( member, typeMetadataBuilder, propertyMetadataBuilder, numericFields, prefix, configContext, pathsContext, parseContext, indexManagerType );
+		checkForFields( member, typeMetadataBuilder, propertyMetadataBuilder, numericFields, prefix, configContext, pathsContext, parseContext, indexManagerType );
+		checkForSpatial( member, typeMetadataBuilder, propertyMetadataBuilder, prefix, pathsContext, parseContext, indexManagerType );
+		checkForSpatialsAnnotation( member, typeMetadataBuilder, propertyMetadataBuilder, prefix, pathsContext, parseContext, indexManagerType );
 		checkForSortableField( member, typeMetadataBuilder, propertyMetadataBuilder, prefix, false, pathsContext, parseContext );
 		checkForSortableFields( member, typeMetadataBuilder, propertyMetadataBuilder, prefix, false, pathsContext, parseContext );
 		checkForAnalyzerDefs( member, configContext );
@@ -918,7 +931,8 @@ public class AnnotationMetadataProvider implements MetadataProvider {
 				typeMetadataBuilder,
 				configContext,
 				pathsContext,
-				parseContext
+				parseContext,
+				indexManagerType
 		);
 		checkForContainedIn( member, typeMetadataBuilder, parseContext );
 
@@ -1062,7 +1076,8 @@ public class AnnotationMetadataProvider implements MetadataProvider {
 			String prefix,
 			ConfigContext configContext,
 			PathsContext pathsContext,
-			ParseContext parseContext) {
+			ParseContext parseContext,
+			Class<? extends IndexManager> indexManagerType) {
 
 		org.hibernate.search.annotations.Field fieldAnnotation =
 				member.getAnnotation( org.hibernate.search.annotations.Field.class );
@@ -1079,7 +1094,8 @@ public class AnnotationMetadataProvider implements MetadataProvider {
 						typeMetadataBuilder,
 						propertyMetadataBuilder,
 						configContext,
-						parseContext
+						parseContext,
+						indexManagerType
 				);
 			}
 		}
@@ -1117,7 +1133,8 @@ public class AnnotationMetadataProvider implements MetadataProvider {
 			TypeMetadata.Builder typeMetadataBuilder,
 			PropertyMetadata.Builder propertyMetadataBuilder,
 			ConfigContext configContext,
-			ParseContext parseContext) {
+			ParseContext parseContext,
+			Class<? extends IndexManager> indexManagerType) {
 
 		XProperty member = propertyMetadataBuilder.getPropertyAccessor();
 
@@ -1145,7 +1162,8 @@ public class AnnotationMetadataProvider implements MetadataProvider {
 				false,
 				numericFieldAnnotation != null,
 				reflectionManager,
-				configContext.getServiceManager()
+				configContext.getServiceManager(),
+				indexManagerType
 		);
 
 		if ( fieldBridge instanceof MetadataProvidingFieldBridge ) {
@@ -1400,7 +1418,8 @@ public class AnnotationMetadataProvider implements MetadataProvider {
 			PropertyMetadata.Builder propertyMetadataBuilder,
 			String prefix,
 			PathsContext pathsContext,
-			ParseContext parseContext) {
+			ParseContext parseContext,
+			Class<? extends IndexManager> indexManagerType) {
 		org.hibernate.search.annotations.Spatials spatialsAnnotation = member.getAnnotation( org.hibernate.search.annotations.Spatials.class );
 		if ( spatialsAnnotation != null ) {
 			for ( org.hibernate.search.annotations.Spatial spatialAnnotation : spatialsAnnotation.value() ) {
@@ -1416,7 +1435,8 @@ public class AnnotationMetadataProvider implements MetadataProvider {
 							member,
 							typeMetadataBuilder,
 							propertyMetadataBuilder,
-							parseContext
+							parseContext,
+							indexManagerType
 					);
 				}
 			}
@@ -1428,7 +1448,8 @@ public class AnnotationMetadataProvider implements MetadataProvider {
 			PropertyMetadata.Builder propertyMetadataBuilder,
 			String prefix,
 			PathsContext pathsContext,
-			ParseContext parseContext) {
+			ParseContext parseContext,
+			Class<? extends IndexManager> indexManagerType) {
 		Spatial spatialAnnotation = member.getAnnotation( Spatial.class );
 		if ( spatialAnnotation != null ) {
 			if ( isFieldInPath(
@@ -1437,7 +1458,7 @@ public class AnnotationMetadataProvider implements MetadataProvider {
 					pathsContext,
 					prefix
 			) || !parseContext.isMaxLevelReached() ) {
-				bindSpatialAnnotation( spatialAnnotation, prefix, member, typeMetadataBuilder, propertyMetadataBuilder, parseContext );
+				bindSpatialAnnotation( spatialAnnotation, prefix, member, typeMetadataBuilder, propertyMetadataBuilder, parseContext, indexManagerType );
 			}
 		}
 	}
@@ -1546,7 +1567,8 @@ public class AnnotationMetadataProvider implements MetadataProvider {
 			String prefix,
 			ConfigContext configContext,
 			PathsContext pathsContext,
-			ParseContext parseContext) {
+			ParseContext parseContext,
+			Class<? extends IndexManager> indexManagerType) {
 		Fields fieldsAnnotation = member.getAnnotation( Fields.class );
 		if ( fieldsAnnotation != null && fieldsAnnotation.value().length > 0 ) {
 			for ( org.hibernate.search.annotations.Field fieldAnnotation : fieldsAnnotation.value() ) {
@@ -1565,7 +1587,8 @@ public class AnnotationMetadataProvider implements MetadataProvider {
 							typeMetadataBuilder,
 							propertyMetadataBuilder,
 							configContext,
-							parseContext
+							parseContext,
+							indexManagerType
 					);
 				}
 			}
@@ -1604,7 +1627,8 @@ public class AnnotationMetadataProvider implements MetadataProvider {
 			TypeMetadata.Builder typeMetadataBuilder,
 			ConfigContext configContext,
 			PathsContext pathsContext,
-			ParseContext parseContext) {
+			ParseContext parseContext,
+			Class<? extends IndexManager> indexManagerType) {
 		IndexedEmbedded indexedEmbeddedAnnotation = member.getAnnotation( IndexedEmbedded.class );
 		if ( indexedEmbeddedAnnotation == null ) {
 			return;
@@ -1695,7 +1719,8 @@ public class AnnotationMetadataProvider implements MetadataProvider {
 					parseContext,
 					configContext,
 					disableOptimizations,
-					updatedPathsContext
+					updatedPathsContext,
+					indexManagerType
 			);
 
 			// reset the context state

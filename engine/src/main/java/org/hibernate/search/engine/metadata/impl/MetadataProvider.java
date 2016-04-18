@@ -6,6 +6,8 @@
  */
 package org.hibernate.search.engine.metadata.impl;
 
+import org.hibernate.search.indexes.spi.IndexManager;
+
 /**
  * @author Hardy Ferentschik
  */
@@ -15,10 +17,11 @@ public interface MetadataProvider {
 	 * Returns the Search related metadata for the specified type.
 	 *
 	 * @param clazz The type of interest.
+	 * @param indexManagerType
 	 *
 	 * @return the {@code TypeMetadata} for the specified type
 	 */
-	TypeMetadata getTypeMetadataFor(Class<?> clazz);
+	TypeMetadata getTypeMetadataFor(Class<?> clazz, Class<? extends IndexManager> indexManagerType);
 
 	boolean containsSearchMetadata(Class<?> clazz);
 }

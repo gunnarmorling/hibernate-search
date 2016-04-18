@@ -13,7 +13,6 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.lucene.search.similarities.ClassicSimilarity;
 import org.apache.lucene.search.similarities.Similarity;
-
 import org.hibernate.annotations.common.reflection.ReflectionManager;
 import org.hibernate.annotations.common.reflection.XClass;
 import org.hibernate.annotations.common.reflection.java.JavaReflectionManager;
@@ -21,10 +20,10 @@ import org.hibernate.search.annotations.Indexed;
 import org.hibernate.search.cfg.Environment;
 import org.hibernate.search.cfg.spi.IndexManagerFactory;
 import org.hibernate.search.cfg.spi.SearchConfiguration;
-import org.hibernate.search.engine.integration.impl.ExtendedSearchIntegrator;
 import org.hibernate.search.engine.impl.DynamicShardingEntityIndexBinding;
 import org.hibernate.search.engine.impl.EntityIndexBindingFactory;
 import org.hibernate.search.engine.impl.MutableEntityIndexBinding;
+import org.hibernate.search.engine.integration.impl.ExtendedSearchIntegrator;
 import org.hibernate.search.engine.service.classloading.spi.ClassLoadingException;
 import org.hibernate.search.engine.service.spi.ServiceManager;
 import org.hibernate.search.exception.SearchException;
@@ -168,6 +167,27 @@ public class IndexManagerHolder {
 		);
 		indexManager.setSearchFactory( searchFactory );
 		return indexManager;
+	}
+
+	public Class<? extends IndexManager> getIndexManagerType(XClass entity, SearchConfiguration cfg, WorkerBuildContext buildContext) {
+		ServiceManager serviceManager = buildContext.getServiceManager();
+		IndexManagerFactory indexManagerFactory = serviceManager.requestService( IndexManagerFactory.class );
+
+		String indexName = getIndexName( entity, cfg );
+		Properties[] indexProperties = getIndexProperties( cfg, indexName );
+		String indexManagerImplementationName = indexProperties[0].getProperty( Environment.INDEX_MANAGER_IMPL_NAME );
+
+		try {
+			if ( StringHelper.isEmpty( indexManagerImplementationName ) ) {
+				return indexManagerFactory.createDefaultIndexManager().getClass();
+			}
+			else {
+				return indexManagerFactory.createIndexManagerByName( indexManagerImplementationName ).getClass();
+			}
+		}
+		finally {
+			serviceManager.releaseService( IndexManagerFactory.class );
+		}
 	}
 
 	/**
