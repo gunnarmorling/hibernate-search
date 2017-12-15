@@ -8,20 +8,15 @@ package org.hibernate.search.reader.impl;
 
 import java.io.IOException;
 import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
-import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.MultiReader;
 import org.apache.lucene.search.Sort;
-import org.apache.lucene.search.SortField;
-import org.apache.lucene.uninverting.UninvertingReader;
-import org.apache.lucene.uninverting.UninvertingReader.Type;
+//import org.apache.lucene.uninverting.UninvertingReader;
+//import org.apache.lucene.uninverting.UninvertingReader.Type;
 import org.hibernate.search.indexes.spi.IndexManager;
 import org.hibernate.search.indexes.spi.ReaderProvider;
 import org.hibernate.search.query.engine.impl.SortConfigurations;
@@ -91,7 +86,7 @@ public class ManagedMultiReader extends MultiReader {
 		}
 
 		Set<String> indexesToBeUninverted = getIndexesToBeUninverted( configuredSorts, sort, indexUninvertingAllowed );
-		Map<String, Type> mappings = indexesToBeUninverted.isEmpty() ? Collections.<String, Type>emptyMap() : getMappings( sort );
+//		Map<String, Type> mappings = indexesToBeUninverted.isEmpty() ? Collections.<String, Type>emptyMap() : getMappings( sort );
 		IndexReader[] effectiveReaders = new IndexReader[subReaders.length];
 
 		int i = 0;
@@ -100,23 +95,23 @@ public class ManagedMultiReader extends MultiReader {
 			if ( !indexesToBeUninverted.contains( indexManagers[i].getIndexName() ) ) {
 				effectiveReaders[i] = reader;
 			}
-			// wrap with uninverting reader
-			else {
-				if ( reader instanceof DirectoryReader ) {
-					DirectoryReader directoryReader = (DirectoryReader) reader;
-
-					try {
-						effectiveReaders[i] = UninvertingReader.wrap( directoryReader, mappings );
-					}
-					catch (IOException e) {
-						throw log.couldNotCreateUninvertingReader( directoryReader, e );
-					}
-				}
-				else {
-					log.readerTypeUnsupportedForInverting( reader.getClass() );
-					effectiveReaders[i] = reader;
-				}
-			}
+//			// wrap with uninverting reader
+//			else {
+//				if ( reader instanceof DirectoryReader ) {
+//					DirectoryReader directoryReader = (DirectoryReader) reader;
+//
+//					try {
+//						effectiveReaders[i] = UninvertingReader.wrap( directoryReader, mappings );
+//					}
+//					catch (IOException e) {
+//						throw log.couldNotCreateUninvertingReader( directoryReader, e );
+//					}
+//				}
+//				else {
+//					log.readerTypeUnsupportedForInverting( reader.getClass() );
+//					effectiveReaders[i] = reader;
+//				}
+//			}
 
 			i++;
 		}
@@ -167,37 +162,37 @@ public class ManagedMultiReader extends MultiReader {
 		return indexesToBeUninverted;
 	}
 
-	/**
-	 * Returns the uninverting reader mappings required for the given non-null sort.
-	 */
-	private static Map<String, UninvertingReader.Type> getMappings(Sort sort) {
-		Map<String,UninvertingReader.Type> mappings = new HashMap<>();
-
-		for ( SortField sortField : sort.getSort() ) {
-			if ( sortField.getField() != null ) {
-				switch ( sortField.getType() ) {
-					case INT: mappings.put( sortField.getField(), Type.INTEGER );
-					break;
-					case LONG: mappings.put( sortField.getField(), Type.LONG );
-					break;
-					case FLOAT: mappings.put( sortField.getField(), Type.FLOAT );
-					break;
-					case DOUBLE: mappings.put( sortField.getField(), Type.DOUBLE );
-					break;
-					case STRING:
-					case STRING_VAL: mappings.put( sortField.getField(), Type.SORTED );
-					break;
-					case BYTES: mappings.put( sortField.getField(), Type.BINARY );
-					break;
-					case CUSTOM: // Nothing to do; expecting doc value fields created by the user
-					break;
-					default: log.sortFieldTypeUnsupported( sortField.getField(), sortField.getType() );
-				}
-			}
-		}
-
-		return mappings;
-	}
+//	/**
+//	 * Returns the uninverting reader mappings required for the given non-null sort.
+//	 */
+//	private static Map<String, UninvertingReader.Type> getMappings(Sort sort) {
+//		Map<String,UninvertingReader.Type> mappings = new HashMap<>();
+//
+//		for ( SortField sortField : sort.getSort() ) {
+//			if ( sortField.getField() != null ) {
+//				switch ( sortField.getType() ) {
+//					case INT: mappings.put( sortField.getField(), Type.INTEGER );
+//					break;
+//					case LONG: mappings.put( sortField.getField(), Type.LONG );
+//					break;
+//					case FLOAT: mappings.put( sortField.getField(), Type.FLOAT );
+//					break;
+//					case DOUBLE: mappings.put( sortField.getField(), Type.DOUBLE );
+//					break;
+//					case STRING:
+//					case STRING_VAL: mappings.put( sortField.getField(), Type.SORTED );
+//					break;
+//					case BYTES: mappings.put( sortField.getField(), Type.BINARY );
+//					break;
+//					case CUSTOM: // Nothing to do; expecting doc value fields created by the user
+//					break;
+//					default: log.sortFieldTypeUnsupported( sortField.getField(), sortField.getType() );
+//				}
+//			}
+//		}
+//
+//		return mappings;
+//	}
 
 	@Override
 	protected synchronized void doClose() throws IOException {
